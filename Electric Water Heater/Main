@@ -1,0 +1,375 @@
+% Comparing Conventional model and New model
+%mainfunction
+%Single User 7 day demo
+%In shift model, use Neural network to learn
+clear all
+%% loading initial data
+global dayn%let every function know the day number
+global Wd0;%Wd0 is the last hour demand of last day
+global Wd;
+global T0;
+global Tc;% 
+global Tinput Tamb Tbase % enviroment parameters
+global M c m hA % model parameters
+global Qd Wdd Tinputd Tambd Td 
+
+%initial delay elements
+Qd = 0;
+Wdd = 0;
+Tinputd = 50;
+Tambd = 50;
+Td = 80;
+
+load 'initial_data'
+load 'Residential_load'
+%dayuse = 2*dayuse;
+
+%%
+%initial functions
+Tinput = 50;
+Tamb = 50;
+Tbase = 110;
+Tdata1 = zeros(0,1);
+Tdata2 = zeros(0,1);
+Tyesterday = 80;
+
+%STL and ARIMA(3,1,1)
+p = 3;D = 1;q = 1;
+MDL = arima('D',1,'Seasonality',24,...
+    'ARLags',3,'MALags',1,'SMALags',24);
+
+%calculating Temperature
+T=@(Q) CalT(Q);%input power, initial temperature, estimated water usage
+Tsec=@(Q) CalTsec(Q);% calculate conventional model temperature
+
+%calculating Water provide
+Wp=@(Q) Waterprovide(Q,T(Q));%define 24 hour Wp by Q and T,T is collected 
+
+
+%%
+% demo day 1 iteration starts here
+for dayn=15:21
+%dayn=4;%day 1 initial
+%dayn=i;% in the i th day
+
+if dayn <=14
+    Wd=dayuse(dayn,:);
+else
+    wdweek = reshape(dayuse(1:dayn-1,:)',1,[]);
+    % estimate parameters
+    EST = estimate(MDL,wdweek');
+    % forecasting
+    
+    Wd = forecast(EST,24,'Y0',wdweek((dayn-8)*24:end)')';
+%     upper = yF + 1.96*sqrt(yMSE);
+%     lower = yF - 1.96*sqrt(yMSE);
+%     Wd=yF;
+end
+T0=Tyesterday;%last day 24th temperature
+%%
+
+%%
+%using genetic algorithm
+%Nonlinear constraints are not satisfied when the  PopulationType option is set to 'bitString' or 'custom'
+tic
+% Initialize the parameters
+GAP = gapdefault;                            % Line 1
+L=zeros(1,24);
+U=4500*ones(1,24);
+% Define gene parameters 
+%                 x1     x2 ......x24   
+% gene             1      2     
+GAP.gd_min  = L;            % Line 2
+GAP.gd_max  = U;            % Line 3
+GAP.gd_type = 2*ones(1,24);            % Line 4 
+GAP.gd_cid  = ones(1,24);            % Line 5
+GAP.fp_ipop=200;               % initial population size   
+GAP.fp_npop=200; 
+
+% Execute GOSET
+check = 0;
+while check == 0
+    [fP,GAS,Qbest,fbest] = gaoptimize(@costfit,GAP);   % Line 6
+    if fbest > -10000
+        check = 1;
+    end
+end
+
+
+
+t1=toc;
+%final population, GAS structure, best individual
+
+%% update real temperature 1.26.2017
+%  Temp_real = zeros(24,1);
+% for hour=1:24
+%       if hour == 1
+%           %(2/(2*M*c+m(i)*c+hA))*(m(i)*c*Tinputc+3600*Q(i)+hA*3600*Tambc - (m(i)*c+3600*hA)*T0c)+T0c;
+%        Temp_real(hour)= 2/(2*M*c + dayuse(dayn,hour)*c+hA)*(dayuse(dayn,hour)*c*(Tinput-32)/1.8+3600*Qbest(hour)+hA*3600*(Tamb-32)/1.8 -(dayuse(dayn,hour)*c+3600*hA)*(T0-32)/1.8)+(T0-32)/1.8; 
+%       else
+%        Temp_real(hour)= 2/(2*M*c + dayuse(dayn,hour)*c+hA)*(dayuse(dayn,hour)*c*(Tinput-32)/1.8+3600*Qbest(hour)+hA*3600*(Tamb-32)/1.8 -(dayuse(dayn,hour)*c+3600*hA)*Temp_real(hour-1))+Temp_real(hour-1);
+%        %Temp_real(hour)= nn2([Temp(hour-1);Power(hour);dayuse(dayn,hour)]);%using nn model to calculate tank temprature
+%       end  
+% end
+%  Temp_real = 1.8*Temp_real+32*ones(24,1);
+% 
+% Tyesterday = Temp_real(24);
+% Td = Temp_real(24);
+
+%% update real temprature equation 6.16.2017
+% Temp_real = zeros(24,1);
+% for hour=1:24
+%       if hour == 1
+%           %(2/(2*M*c+m(i)*c+hA))*(m(i)*c*Tinputc+3600*Q(i)+hA*3600*Tambc - (m(i)*c+3600*hA)*T0c)+T0c;
+%        Temp_real(hour)= 1/(M*c + dayuse(dayn,hour)*c/3.7854+1800*hA)*(dayuse(dayn,hour)/3.7854*c*(Tinput-32)/1.8+3600*Qbest(hour)+hA*3600*(Tamb-32)/1.8 -(dayuse(dayn,hour)*c/3.7854+3600*hA)*(T0-32)/1.8)+(T0-32)/1.8; 
+%       else
+%        Temp_real(hour)= 1/(M*c + dayuse(dayn,hour)*c/3.7854+1800*hA)*(dayuse(dayn,hour)/3.7854*c*(Tinput-32)/1.8+3600*Qbest(hour)+hA*3600*(Tamb-32)/1.8 -(dayuse(dayn,hour)*c/3.7854+3600*hA)*Temp_real(hour-1))+Temp_real(hour-1);
+%        %Temp_real(hour)= nn2([Temp(hour-1);Power(hour);dayuse(dayn,hour)]);%using nn model to calculate tank temprature
+%       end  
+% end
+%  Temp_real = 1.8*Temp_real+32*ones(24,1);
+% 
+% Tyesterday = Temp_real(24);
+% Td = Temp_real(24);
+
+%% still not right
+
+% no equation use now
+
+NE = T(Qbest);
+Td = NE(24);
+%-------------------------------------------------------------------
+%-------------------------------------------------------------------
+%-------------------------------------------------------------------
+%% conventional model-------------------------------------------------------
+ 
+   Wp_c = dayuse(dayn,:);% 24 hour Wp should equal to day use
+   Power = zeros(24,1);%initialize
+   Temp = zeros(24,1);
+   T0c = (T0-32)/1.8;
+   Tinputc = (Tinput - 32)/1.8;
+   Tambc = (Tamb - 32)/1.8;
+   
+   Thigh = 150;%turn off temp
+   Tlow = 100;%turn on tem p
+   Thighc = (Thigh-32)/1.8;%turn off temp
+   Tlowc = (Tlow-32)/1.8;%turn on tem p
+   %state = 1, up, = 0 , down
+   tic;
+  
+   Power = zeros(24,1);% power initialize
+   Temp_avg = zeros(24,1);% average temp initialize
+   Tcov = zeros(24,1);% temp initialize
+   Wd_cov = zeros(24,1);% Wd initialize
+   state = 0;
+   
+for hour=1:24
+    if hour == 1
+        Tcov(hour) = T0c;
+    else
+        Tcov(hour) = Tcov(hour-1);
+    end
+    
+     for sec = 1:3600
+         
+        if Tcov(hour)> Thighc
+            state = 0;
+        end
+        if Tcov(hour) < Tlowc
+            state = 1;
+        end
+         
+        if state == 1
+            Powersec = 4500;
+        else
+            Powersec = 0;
+        end
+         Wd_cov(hour) = WaterToMass(dayuse(dayn,hour),Tcov(hour));
+        Tcov(hour)=1/M*(Tinputc*Wd_cov(hour)+1/c*Powersec+hA/c*Tambc+(M-Wd_cov(hour)-hA/c)*Tcov(hour));%this is the T sec updating
+        Power(hour)= Power(hour)+Powersec;
+        Temp_avg(hour) = Temp_avg(hour)+Tcov(hour);
+               
+      
+    end
+end
+    Power = Power./3600;% average power
+    Tcov = 1.8*Tcov + 32*ones(24,1);% final sampled temp
+    Temp_avg = 1.8/3600*Temp_avg + 32*ones(24,1);% average temp of each hour
+   %wrong here
+%     if hour == 1
+%         Tc = T0;
+%     else
+%         Tc = Temp(hour-1);
+%     end
+%     Wpfun=@(Q) Waterprovide_Cov(Q)-Wp_c(hour) ;
+%     Power(hour)=fsolve(Wpfun,0);% Water provide should be equal to water day use
+%     Waterprovide_Cov(Power(hour))
+%     dayuse(dayn,hour)
+%   Temp(hour)=nn2([Tc;Power(hour);dayuse(dayn,hour)]);%using nn model to calculate tank temprature
+
+% use dayuse(dayn,:)
+
+
+
+
+t2=toc;
+Conv=P*Power;% calculating money
+
+fprintf('--------------New Model-------------------\n');
+fprintf('Today: Day%g \n',dayn);%Date
+fprintf('TIC TOC: %g s\n',t1);
+fprintf('Money Spent Today: %g $\n',-fbest/1000);%fbest
+fprintf('---------------------------------\n');
+
+
+fprintf('------------Conventional Model---------------------\n');
+fprintf('Today: Day%g \n',dayn);%Date
+fprintf('TIC TOC: %g s\n',t2);
+fprintf('Money Spent Today: %g $\n',Conv/1000);
+fprintf('---------------------------------\n');
+
+Costcompare(dayn,:) = [-fbest/1000 Conv/1000];
+
+% figure(1)
+% bar(1:24,Qbest)
+% title('GA Result 24 Hour Optimal Power','FontSize',15,'FontName','Times New Roman');
+% xlabel('Time(hour)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+% ylabel('Power(W)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+
+f2=figure(3);
+movegui(f2,'northeast')
+stairs(1:24,T(Qbest))
+hold on
+stairs(NE,'r')
+%stairs(Temp_real,'r')
+title('Tank Temperature with Optimal Power Control','FontSize',15,'FontName','Times New Roman');
+xlabel('Time(hour)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+s = sprintf('Temperature(%cF)', char(176));
+ylabel(s,'FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+legend('Tnn','Treal')
+
+f3=figure(4);
+movegui(f3,'northwest')
+plot(1:24,Tcov)
+hold on
+plot(Temp_avg,'r')
+title('Tank Temperature with Conventional Control','FontSize',15,'FontName','Times New Roman');
+xlabel('Time(hour)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+s = sprintf('Temperature(%cF)', char(176));
+ylabel(s,'FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+
+% figure(4)
+% bar(1:24,Power)
+% title('24 hour Power','FontSize',15,'FontName','Times New Roman');
+% xlabel('Time(hour)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+% ylabel('Power(W)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Compare=[Qbest';Power'];
+figure(5)
+hb=bar(Compare',1);
+set(hb(1), 'FaceColor','r')
+set(hb(2), 'FaceColor','b')
+hold on
+%plot(4500*P/norm(P,inf))
+%axis([0 24 0 4500])
+%title('24 hour Power Compare','FontSize',15,'FontName','Times New Roman');
+xlabel('Time(hour)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+ylabel('Average Power(W)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+legend('GA-based','Conventional')
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+figure(6)
+stairs(dayuse(dayn,:))
+hold on
+stairs(Wd,'g')
+stairs(Waterprovide(Qbest,CalT(Qbest)),'r')
+grid on
+%title('Today real hot water usage')
+xlabel('Time(hour)','FontWeight','bold','FontSize',12,'FontName','Times New Roman')
+ylabel('Hot water usage(gallon)','FontWeight','bold','FontSize',12,'FontName','Times New Roman')
+legend('Real Wd','Forcast Wd','Max Capability')
+
+%data collection
+% Tdata1 = [Tdata1;Temp_real];
+% Tdata2 = [Tdata2;Temp_avg];
+
+% pause
+% close all
+
+%pause
+end
+%%
+bar(Costcompare(15:end,:))
+xlabel('Time(Day)','FontSize',10,'FontName','Times New Roman');
+ylabel('Cost($)','FontSize',10,'FontName','Times New Roman');
+legend('GA-Based','Conventional')
+x = [0.9:1:6.9]';
+y = Costcompare(15:end,:)';
+y1 = y(1,:)
+y2 = y(2,:)
+labels = arrayfun(@(value) num2str(value,'%0.2f'),y1,'UniformOutput',false);
+text(x,y1,labels,...
+  'HorizontalAlignment','center',...
+  'VerticalAlignment','bottom') 
+x = [1.1:1:7.1]';
+labels = arrayfun(@(value) num2str(value,'%0.2f'),y2,'UniformOutput',false);
+text(x,y2,labels,...
+  'HorizontalAlignment','center',...
+  'VerticalAlignment','bottom') 
+
+%axis([0.5 7.5 0 0.6])
+
+
+% figure(7)
+% plot(Provide)
+% grid on
+% hold on
+% plot(dayuse(dayn,:))
+% %title('GA supply vs demand')
+% xlabel('Time(hour)','FontSize',12,'FontName','Times New Roman')
+% ylabel('Gallon','FontSize',12,'FontName','Times New Roman')
+% legend('Water Supply','Water Demand')
+
+
+
+for i=1:24
+    load_24(i)=rl(60*i)
+end
+
+load_24_new = load_24' + Qbest;
+load_24_old = load_24' + Power;
+
+figure
+stairs(load_24,'k--')
+hold on
+stairs(load_24_new,'g--')
+stairs(load_24_old,'b--')
+xlabel('Time(hour)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+ylabel('Power(W)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+legend('Load without EWH','GA-based','Conventional')
+
+
+figure
+p1 = PAR(load_24);
+p2 = PAR(load_24_new');
+p3 = PAR(load_24_old');
+bar([sum(Costcompare) 0;p2 p3 p1])
+legend('GA-based','Conventional','Load without EWH')
+somenames={'Week Cost($)'; 'PAPR' };
+set(gca,'xticklabel',somenames,'FontSize',12,'FontName','Times New Roman')
+
+
+figure
+plot(Tdata1,'r')
+hold on
+plot(Tdata2,'b')
+xlabel('Time(hour)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+s = sprintf('Temperature(%cF)', char(176));
+ylabel(s,'FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+legend('GA-based','Conventional')
+
+
+ 
+ 
