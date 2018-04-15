@@ -1,0 +1,19 @@
+function f = costfit(x)
+% cost function for GA
+
+global P
+global Wd
+
+
+C = Wd-Waterprovide(x,CalT(x)) <= 0;%wd<=wp
+% cost function
+f1 = P*(x);
+ 
+
+% Fitness function
+%f = -f1; 
+if C
+    f = -f1;
+else
+    f = -10000;
+end
