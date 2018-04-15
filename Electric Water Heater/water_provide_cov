@@ -1,0 +1,29 @@
+% This function calculate the water provide given the power Q and
+% temperature T
+function Wp=Waterprovide_Cov(Q)
+global V
+global Tc
+%Tc is the tank temperature
+
+%    if T0_c>110
+%         Wp=(V*0.7+Q/(2.442*(T0_c)-50))*(T0_c-50)/60;
+%     else
+%         Wp=Q/(2.442*(T0_c-50))*(T0_c-50)/60;
+%     end
+
+%   if T0_c>110
+%         Wp=(V*0.7)*(T0_c-50)/60 + Q/(2.442*(110-50));
+%     else
+%         Wp=Q/(2.442*(110-50));
+%   end
+    
+    if Tc >110
+        Wp=(V*0.7)*(Tc-50)/60 ;
+     else
+        Wp=Q*0.7/(2.442*70)*(Tc+20)/60;
+        
+    end
+
+
+end
+
