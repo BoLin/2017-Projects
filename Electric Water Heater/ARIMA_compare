@@ -1,0 +1,188 @@
+    % ARIMA compare
+ clear dayuse SM SMA ARIMA24 ARIMA168 
+%  load 'initial_data'
+%     % compare 4 different method
+%     for i=1:28
+%     daylow=rand(1,24);%random user
+%     daypeak=3*rand(1,16);%random 6-21 peak value
+%     dayuse(i,:)=G+daylow+[zeros(1,5) daypeak zeros(1,3)];
+%   end 
+load 'dayuse_raw'
+%31 day
+dayuse = reshape(day_raw,[24,31]);
+
+%% match load with EWH usage
+usage_min = min(sum(dayuse));
+L=[1 0.7 0.8 1.8 5.6 12 14.3 11.2 10.7 9.8 8.9 8 7.2 6.7 6.8 8 9.8 10.9 11 9.8 8.1 5.3 3 1.6];%AHC solar city sample
+G=L/3.78541;%can check multiple G
+usage_water = sum(G);
+ratio = usage_min/usage_water;
+dayuse = dayuse/ratio;
+
+
+dayuse = dayuse';
+
+    %day 1 -14 no forecast
+
+    SM(1:14,:) = dayuse(1:14,:);
+    SMA(1:14,:) = dayuse(1:14,:);
+    ARIMA311(1:14,:) = dayuse(1:14,:);
+    ARIMA24(1:14,:) = dayuse(1:14,:);
+    ARIMA168(1:14,:) = dayuse(1:14,:);
+
+    %arima 24 (means daily) ARIMA 111 102
+%     MDL24 = arima('D',1,'Seasonality',24,...
+%         'ARLags',1,'MALags',1,'SMALags',24);
+
+     MDL311 = arima('D',1,'Seasonality',24,...
+    'ARLags',3,'MALags',1,'SMALags',24);
+    
+  %
+   MDL24 = arima('Constant',0,'AR',{0.5},'SAR',-0.7,'SARLags',...
+					1,'D',1,'Seasonality',24,'MA',0.3,'SMA',-0.2,...
+					'SMALags',2)
+%     
+    % arima 168 ARIMA 112 100
+%     MDL168 = arima('D',1,'Seasonality',168,...
+%         'ARLags',1,'MALags',2,'SMALags',24);
+
+%arima 112 100
+    MDL168 = arima('Constant',0,'AR',{0.5},'SAR',-0.7,'SARLags',...
+					1,'D',1, 'ARLags',1,'MALags',2,'Seasonality',168,'MA',0.3)
+					
+
+
+    for day = 15:28% one week simulation
+    %% Seasonal Mean (24 hour)
+    SM(day,:) = zeros(size(SM(1,:)));
+        for dayo = 1:day-1
+            SM(day,:) = SM(day,:)+dayuse(dayo,:);%  
+        end
+            SM(day,:) = SM(day,:)/dayo;
+
+    %% Seaonal Moving Average (7 days)
+    SMA(day,:) = zeros(size(SMA(1,:)));
+    if day >=8    
+    for dayo = day-7:day-1
+            SMA(day,:) = SMA(day,:)+dayuse(dayo,:);%  
+    end
+            SMA(day,:) = SMA(day,:)/7;
+    else
+        for dayo = 1:day-1
+            SMA(day,:) = SMA(day,:)+dayuse(dayo,:)
+        end
+            SMA(day,:) = SMA(day,:)/dayo;
+    end
+
+    %% ARIMA 24
+    wdweek = [];
+    for i = 1:day-1
+        wdweek = [wdweek;dayuse(i,:)'];
+    end
+    EST24 = estimate(MDL24,wdweek)
+
+    ARIMA24(day,:) = forecast(EST24,24,'Y0',wdweek((day-7)*24:end));
+    
+    %% ARIMA 311
+    wdweek = [];
+    for i = 1:day-1
+        wdweek = [wdweek;dayuse(i,:)'];
+    end
+    EST311 = estimate(MDL311,wdweek)
+
+    ARIMA311(day,:) = forecast(EST311,24,'Y0',wdweek((day-7)*24:end));
+
+    %% ARIMA 168
+    
+    EST168 = estimate(MDL168,wdweek);
+
+    ARIMA168(day,:) = forecast(EST168,24,'Y0',wdweek((day-9)*24:end));
+
+    end
+dayuse_R = reshape(dayuse',1,[]);
+SM_R = reshape(SM',1,[]);
+SMA_R = reshape(SMA',1,[]);
+ARIMA311_R = reshape(ARIMA311',1,[]);
+ARIMA24_R = reshape(ARIMA24',1,[]);
+ARIMA168_R = reshape(ARIMA168',1,[]);
+
+figure
+hold on
+
+plot(dayuse_R(313:672),'*')
+plot(SM_R(313:end),'r')
+plot(SMA_R(313:end),'g')
+plot(ARIMA311_R(313:end),'y')
+plot(ARIMA24_R(313:end),'b')
+plot(ARIMA168_R(313:end),'k')
+xlabel('Time(hour)')
+ylabel('Water Demand(gallon)')
+legend('Real','SM','SMA','ARIMA311','ARIMA24','ARIMA168')
+
+%% performance calculation
+
+
+%sd(yt)
+%yt is the target value, which is the dayuse
+sdy = std(dayuse_R(337:672));
+
+%et is the forecast error
+et_SM = abs(SM_R(337:672) - dayuse_R(337:672));
+et_SMA = abs(SMA_R(337:672) - dayuse_R(337:672));
+et_ARIMA311 = abs(ARIMA311_R(337:672) - dayuse_R(337:672));
+et_ARIMA24 = abs(ARIMA24_R(337:672) - dayuse_R(337:672));
+et_ARIMA168 = abs(ARIMA168_R(337:672) - dayuse_R(337:672));
+
+%plot
+figure
+hold on
+plot(et_SM,'r')
+plot(et_SMA,'g')
+plot(et_ARIMA311,'y')
+plot(et_ARIMA24,'b')
+plot(et_ARIMA168,'k')
+legend('SM','SMA','ARIMA24','ARIMA168')
+
+
+
+%nMAE
+SM_nMAE = mean(et_SM)/sdy
+SMA_nMAE = mean(et_SMA)/sdy
+ARIMA311_nMAE = mean(et_ARIMA311)/sdy
+ARIMA24_nMAE = mean(et_ARIMA24)/sdy
+ARIMA168_nMAE = mean(et_ARIMA168)/sdy
+
+%nRMSE
+SM_nRMAE = sqrt(mean(et_SM.^2))/sdy
+SMA_nRMAE = sqrt(mean(et_SMA.^2))/sdy
+ARIMA311_nRMAE = sqrt(mean(et_ARIMA311.^2))/sdy
+ARIMA24_nRMAE = sqrt(mean(et_ARIMA24.^2))/sdy
+ARIMA168_nRMAE = sqrt(mean(et_ARIMA168.^2))/sdy
+
+% MASE
+%time length = 336
+%s = 24
+qt_SM = 312 * et_SM /sum(abs(dayuse_R(337+24:672)-dayuse_R(337:672-24)));
+
+%s = 168
+qt_SMA = 144 * et_SMA /sum(abs(dayuse_R(337+168:672)-dayuse_R(337:672-168)));
+
+%s = 24 311
+qt_ARIMA311 = 312 * et_ARIMA311/sum(abs(dayuse_R(337+24:672)-dayuse_R(337:672-24)));
+%s = 24
+qt_ARIMA24 = 312 * et_ARIMA24 /sum(abs(dayuse_R(337+24:672)-dayuse_R(337:672-24)));
+
+%s = 168
+qt_ARIMA168 = 144  *et_ARIMA168 /sum(abs(dayuse_R(337+168:672)-dayuse_R(337:672-168)));
+
+
+SM_MASE = mean(qt_SM)
+SMA_MASE = mean(qt_SMA)
+ARIMA311_MASE = mean(qt_ARIMA311)
+ARIMA24_MASE = mean(qt_ARIMA24)
+ARIMA168_MASE = mean(qt_ARIMA168)
+
+
+
+
+
