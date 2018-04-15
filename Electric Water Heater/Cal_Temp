@@ -1,0 +1,96 @@
+function [ T ] = CalT(Q)
+%calculating temperature using neural network 1
+% should use real water usage
+
+global dayuse
+global dayn
+global Wd0
+global T0
+global Wd
+global Tinput
+global Tamb
+global Tbase
+global M
+global c
+global m
+global hA
+global Qd Wdd Tinputd Tambd Td % delay elements for NN training
+% cal_day=dayuse(dayn,:);
+
+%   for i=1:24
+%       if i==1
+%           T(i)=nn2([T0;Q(i);cal_day(i)]);
+%       else
+%           T(i)=nn2([T(i-1);Q(i);cal_day(i)]);
+%       end
+%    %   i=i+1;
+%   end
+
+%1 = Tinput
+%2 = Tamb
+%3 = QQ
+%4 = T0
+%5 = WD
+%6 = Tbase
+
+%use WD_new = mass
+% WD_new = zeros(24,1);
+
+% F to C temp unit
+% m = Wd;
+% T0c = (T0-32)/1.8;
+% Tinputc = (Tinput - 32)/1.8;
+% Tambc = (Tamb - 32)/1.8;
+
+T = zeros(24,1);
+for i=1:24
+    if i==1
+        %           TTsec = T0;%f
+        %               for sec = 1:3600
+        %               Wd_new(i) = WaterToMass(Wd(i),TTsec);
+        %               T(i)=Thermal([Tinput;Tamb;Q(i);TTsec;Wd_new(i)]);%f
+        %               TTsec = T(i);
+        %               end
+        %           T(i,1) =  1/(M*c + m(i)*c+hA)*(m(i)*c*Tinputc+3600*Q(i)+hA*3600*Tambc - 3600*(m(i)*c/3600+hA)*T0c)+T0c;
+        %        %Below is the math model
+        %  T(i) = (2*(2*M*c+m(i)*c+hA)^-1)*(m(i)*c*Tinputc+3600*Q(i)+hA*3600*Tambc - (m(i)*c+3600*hA)*T0c)+T0c;
+        
+        
+        %% Below is the NN model
+        % Input Q Wd Tinput Tamb
+        % Delay Q Wd Tinput Tamb T0
+        Input = {[Q(i);Wd(i);Tinput;Tamb];[]};
+        Delay = {[Qd;Wdd;Tinputd;Tambd];[Td]};% all the delays
+        TT = EWH_D1(Input,Delay,{});
+        T(i) = cell2mat(TT(1));
+        
+    else
+        %           TTsec = T(i-1);
+        %           for sec = 1:3600
+        %               Wd_new(i) = WaterToMass(Wd(i),TTsec);
+        %           T(i)=Thermal([Tinput;Tamb;Q(i);TTsec;Wd_new(i)]);
+        %           TTsec = T(i);
+        %           end
+        %  T(i,1) =  1/(M*c + m(i)*c+hA)*(m(i)*c*Tinputc+3600*Q(i)+hA*3600*Tambc - 3600*(m(i)*c/3600+hA)*T(i-1))+T(i-1);
+        % T(i) = (2*(2*M*c+m(i)*c+hA)^-1)*(m(i)*c*Tinputc+3600*Q(i)+hA*3600*Tambc - (m(i)*c+3600*hA)*T(i-1))+T(i-1);
+        
+        Input = {[Q(i);Wd(i);Tinput;Tamb];[]};
+        Delay = {[Qd;Wdd;Tinputd;Tambd];[Td]};% all the delays
+        TT  = EWH_D1(Input,Delay,{});
+        T(i) =  cell2mat(TT(1));
+    end
+    
+    %% update delayed unit
+    Qd = Q(i);
+    Wdd = Wd(i);
+    Tinputd = Tinput;
+    Tambd = Tamb;
+    Td = T(i);
+    
+end
+
+% T(i) =  1/(M*c + m*c+hA)*(m*c+3600*Q+hA*3600*Tamb - 3600*(m*c+hA)*T(i-1))+T(i-1)
+% T = 1.8*T+32*ones(24,1);
+
+end
+
