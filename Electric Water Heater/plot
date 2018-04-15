@@ -1,0 +1,74 @@
+%%
+%plotting
+% figure(1)
+% for i=1:7
+%         plot(dayuse(i,:),'Color',[rand(1) rand(1) rand(1)])
+%     hold on
+% end 
+% grid on
+% legend('day1','day2','day3','day4','day5','day6','day7')
+% title('A demo week real hot water usage')
+% xlabel('Time(hour)')
+% ylabel('Hot water usage(gallon)')
+
+
+figure(2)
+bar(1:24,Qbest)
+title('GA Result 24 Hour Optimal Power','FontSize',15,'FontName','Times New Roman');
+xlabel('Time(hour)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+ylabel('Power','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+
+
+
+figure(3)
+bar(1:24,Provide,'r')%bar color 'b' | 'r' | 'g' | 'c' | 'm' | 'y' | 'k' | 'w'
+hold on
+bar(1:24,Wd,'b')
+hold on
+plot(Wr,'g','LineWidth',2)
+title('Water Provide/Water Demand/Water Real','FontSize',15,'FontName','Times New Roman');
+xlabel('Time(hour)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+ylabel('Gallon','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+Legend('WP','WD','Wr')
+
+
+figure(4)
+bar(1:24,T(Qbest))
+title('24 hour Real Tank Temperature','FontSize',15,'FontName','Times New Roman');
+xlabel('Time(hour)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+s = sprintf('Temperature(%cF)', char(176));
+ylabel(s,'FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+
+figure(5)
+bar(1:24,Over)
+title('24 hour Over Produce(Preserved)','FontSize',15,'FontName','Times New Roman');
+xlabel('Time(hour)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+ylabel('Gallon','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+hold on
+plot(1:24,100*P,'r')
+legend('Over Preduce','Price')
+
+figure(6)
+Error=Wd-Wr;
+bar(1:24,Error)
+title('24 hour Prediction Error','FontSize',15,'FontName','Times New Roman');
+xlabel('Time(hour)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+ylabel('Gallon','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+
+figure(7)
+bar(1:24,P,'c')
+grid on
+title('24 hour Real Time Price','FontSize',15,'FontName','Times New Roman');
+xlabel('Time(hour)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+ylabel('Price(Dollar/KWH)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+
+% figure(3) 
+% bar(1:24,Wd)
+% title('Water Demand','FontSize',15,'FontName','Times New Roman');
+% xlabel('Time(hour)','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+% ylabel('Gallon','FontWeight','bold','FontSize',12,'FontName','Times New Roman');
+
+figure
+hold on
+plot(Wp(Qbest),'b')
+plot(Waterprovide_Cov(Power),'r')
