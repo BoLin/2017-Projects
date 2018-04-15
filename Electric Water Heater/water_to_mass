@@ -1,0 +1,19 @@
+%water demand to mass flow rate
+function [ mass ] = WaterToMass(WD,Temp)
+%calculating temperature using neural network 1
+% should use real water usage
+
+global Tinput
+global Tamb
+global Tbase
+
+WD = WD/3600; % WD from hour to second
+if Temp > 110
+    mass = WD*(Tbase-Tinput)/(Temp-Tinput);
+else
+    mass = WD;
+end  
+  
+  
+end
+
