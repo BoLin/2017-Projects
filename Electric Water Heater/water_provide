@@ -1,0 +1,69 @@
+% This function calculate the water provide given the power Q and
+% temperature T
+function Wp=Waterprovide(Q,T)
+global V
+global dayuse
+global dayn
+global T0
+%global Wd
+
+%initial water provide
+Wp=zeros(1,24);
+
+% for i=1:24
+%     if T(i)>110
+%         Wp(i)=(V*0.7+Q(i)/(2.442*(T(i)-50)))*(T(i)-50)/60;
+%     else
+%         Wp(i)=Q(i)/(2.442*(T(i)-50))*(T(i)-50)/60;
+%     end
+% end
+
+for i=1:24
+    if i == 1;
+        Tchoose = T0;
+    else
+        Tchoose = T(i-1);
+    end
+    
+      
+    if Tchoose >110
+        Wp(i)=(V*0.7)*(Tchoose-50)/60+ Q(i)/(2.442*(110-50));
+    else
+        Wp(i)=Q(i)/(2.442*70)*(Tchoose+20)/60;
+         %y(i)= k*Q./(2.44*70)*(i+20)/60;
+  
+    end
+end
+
+% for i=1:24
+%     if T(i)>110
+%         Wp(i)=(V*0.7)*(T(i)-50)/60 ;
+%     else if 110-T(i)>= 40
+%          Wp(i)=Q(i)/(2.442*(110-T(i)));
+%          else 
+%             Wp(i)=Q(i)/(2.442*(150-T(i)))*(150-50)/60;
+%         end
+%     end
+% end
+
+
+%water reserve effeciency
+%K=0.9;
+
+% for i=1:24
+%     if i==1
+%         Wp(i)=Water_Left+Wp(i);% first hour add last 24 hour hot water
+%     else
+%         Wp(i)=Wp(i-1)-Usage(i-1)+Wp(i);% other hours add the last hour WP-real use
+%     end
+% end
+
+
+
+%110 F is the required output water temperature, if tank water temperature
+%is higher than 110 F, user will blend in 50 F cold water.
+
+
+%If in the first hour, there is hot water left, the hot water left is added
+%to the next hour
+
