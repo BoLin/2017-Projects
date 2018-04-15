@@ -1,0 +1,8 @@
+function [value1 value2]=PAR(user)
+average=mean(user);
+average_s=user*(user')/24;
+peak=max(user);
+peak_s=peak^2;
+value1=peak/average;% peak to average ratio
+value2=peak_s/average_s;%peak^2/rms
+end
